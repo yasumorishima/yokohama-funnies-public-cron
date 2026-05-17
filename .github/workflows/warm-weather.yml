@@ -2,11 +2,11 @@ name: Warm /weather cache
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       memo:
-        description: '実行メモ'
+        description: "実行メモ"
         required: false
 
 permissions: {}
@@ -16,6 +16,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: curl /weather
-        run: |
-          curl --max-time 30 -sS -o /dev/null -w "HTTP %{http_code} time %{time_total}s
-" "${{ secrets.VERCEL_APP_URL }}/weather"
+        run: curl --max-time 30 -sS -o /dev/null -w 'HTTP %{http_code} time %{time_total}s' "${{ secrets.VERCEL_APP_URL }}/weather"
