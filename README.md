@@ -13,6 +13,7 @@
 | File | Schedule | 役割 |
 |---|---|---|
 | `warm-weather.yml` | `*/30 * * * *` | funnies の `/weather` を HTTP GET で warm、 Vercel ISR cache (`revalidate=1800`) を refresh |
+| `keep-alive.yml` | `0 0 * * 0` (週次) | `/schedule` を HTTP GET して SSR 経由で Supabase fetch を起こし、 Free plan の 7 日無活動 auto-pause を回避 (anon key 不要) |
 
 `runs-on: ubuntu-latest` で public 無料枠運用。
 
