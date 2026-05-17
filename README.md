@@ -12,15 +12,15 @@
 
 | File | Schedule | 役割 |
 |---|---|---|
-|  |  | funnies の  を HTTP GET で warm、 Vercel ISR cache (revalidate=1800) を refresh |
+| `warm-weather.yml` | `*/30 * * * *` | funnies の `/weather` を HTTP GET で warm、 Vercel ISR cache (`revalidate=1800`) を refresh |
 
- で public 無料枠運用。
+`runs-on: ubuntu-latest` で public 無料枠運用。
 
 ## Required GitHub Secrets
 
 | Name | 必須 | 値 |
 |---|---|---|
-|  | ✅ | funnies の deployed URL () |
+| `VERCEL_APP_URL` | ✅ | funnies の deployed URL (`https://yokohama-funnies.vercel.app`) |
 
 Settings → Secrets and variables → Actions から設定。
 
