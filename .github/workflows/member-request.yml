@@ -1,0 +1,58 @@
+name: Member Request Issue
+
+on:
+  repository_dispatch:
+    types: [member-request]
+
+permissions:
+  contents: read
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    env:
+      PRIVATE_REPO: yasumorishima/yokohama-funnies
+    steps:
+      - name: Mint GitHub App token (scoped to private funnies repo)
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.FUNNIES_APP_ID }}
+          private-key: ${{ secrets.FUNNIES_APP_PRIVATE_KEY }}
+          owner: yasumorishima
+          repositories: yokohama-funnies
+
+      - name: Create issue in private funnies repo
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          NAME: ${{ github.event.client_payload.name }}
+          JERSEY: ${{ github.event.client_payload.jersey_number }}
+          EMAIL: ${{ github.event.client_payload.email }}
+        run: |
+          set -euo pipefail
+          NAME_DISPLAY="${NAME:-(名前未入力)}"
+          JERSEY_DISPLAY="${JERSEY:-(未指定)}"
+          EMAIL_DISPLAY="${EMAIL:-(取得失敗)}"
+          TITLE="[会員申請] ${NAME_DISPLAY} (背番号 ${JERSEY_DISPLAY})"
+          BODY=$(cat <<BODYEOF
+          ## 会員申請が届きました
+
+          - **氏名**: ${NAME_DISPLAY}
+          - **背番号**: ${JERSEY_DISPLAY}
+          - **メールアドレス**: ${EMAIL_DISPLAY}
+
+          ---
+
+          ### 次のアクション
+          1. 申請者本人と確認 (チームメンバーであるか / 別人なりすましでないか)
+          2. /admin/roles で適切な role (viewer / member / editor / admin) を付与
+          3. 完了後この issue を close
+
+          自動生成: gas-member-form (onFormSubmit) → Vercel proxy → public-cron repository_dispatch
+          BODYEOF
+          )
+          gh issue create \
+            --repo "${PRIVATE_REPO}" \
+            --title "${TITLE}" \
+            --body "${BODY}" \
+            --label "member-request"
