@@ -1,0 +1,52 @@
+name: Update README Stats (funnies public-cron)
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+    inputs:
+      memo:
+        description: "実行メモ"
+        required: false
+
+permissions: {}
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint GitHub App token (scoped to funnies private repo)
+        id: app
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.FUNNIES_APP_ID }}
+          private-key: ${{ secrets.FUNNIES_APP_PRIVATE_KEY }}
+          owner: yasumorishima
+          repositories: yokohama-funnies
+
+      - name: Checkout yokohama-funnies (private)
+        uses: actions/checkout@v4
+        with:
+          repository: yasumorishima/yokohama-funnies
+          token: ${{ steps.app.outputs.token }}
+          path: funnies-source
+
+      - name: Run stats script
+        working-directory: funnies-source
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bash scripts/update-readme-stats.sh
+
+      - name: Commit README if changed
+        working-directory: funnies-source
+        run: |
+          if git diff --quiet README.md; then
+            echo "No changes in README"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: auto-update README stats"
+          git push
