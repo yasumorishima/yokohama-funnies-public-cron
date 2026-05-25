@@ -84,3 +84,31 @@ jobs:
             echo "::error::GAS heartbeat is $age_sec seconds old (>${GAS_HEARTBEAT_MAX_AGE_SEC}s). GAS time trigger may be silently dead (OAuth scope failure pattern)."
             exit 1
           fi
+
+      - name: Probe feedback notification Web App (gas-member-form doPost) secret match
+        env:
+          GAS_WEBHOOK_URL: ${{ secrets.FUNNIES_GAS_WEBHOOK_URL }}
+          GAS_WEBHOOK_SECRET: ${{ secrets.FUNNIES_GAS_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+          # action:healthcheck = secret 一致だけ確認しメールは送らない probe 経路。
+          # GAS Web App は 302 で googleusercontent にリダイレクトするので -X POST は付けない
+          # (付けると 302 後の POST が Content-Length 無しで 411)。
+          payload=$(jq -nc --arg secret "$GAS_WEBHOOK_SECRET" '{secret:$secret, action:"healthcheck"}')
+          http=$(echo "$payload" | curl --max-time 25 -sS -L -o /tmp/fb-body -w "%{http_code}" \
+            "$GAS_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            --data-binary @-)
+          body=$(cat /tmp/fb-body | head -c 500)
+          echo "feedback_webapp_http=$http body=$body"
+          if [ "$http" != "200" ]; then
+            echo "::error::feedback Web App HTTP $http (expected 200). URL down or webapp manifest stripped — /feedback の Gmail 通知経路が壊れている。"
+            exit 1
+          fi
+          if echo "$body" | grep -q "unauthorized"; then
+            echo "::error::feedback Web App unauthorized — WEBHOOK_SECRET が Vercel FEEDBACK_GAS_SECRET と drift。 /feedback は issue 作成するが Gmail 通知が silent drop。"
+            exit 1
+          fi
+          if ! echo "$body" | grep -q '"ok":true'; then
+            echo "::warning::feedback Web App unexpected response (expected ok:true): $body"
+          fi
