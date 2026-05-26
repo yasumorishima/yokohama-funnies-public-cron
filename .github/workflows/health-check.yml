@@ -119,9 +119,11 @@ jobs:
           fi
 
       - name: Checkout (pipeline health script)
+        if: ${{ !cancelled() }}
         uses: actions/checkout@v4
 
       - name: Mint App token for failure alerting
+        if: ${{ !cancelled() }}
         id: alert-app
         uses: actions/create-github-app-token@v2
         with:
@@ -131,6 +133,7 @@ jobs:
           repositories: yokohama-funnies
 
       - name: Detect member-pipeline workflow failures and alert
+        if: ${{ !cancelled() }}
         env:
           PROBE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           APP_TOKEN: ${{ steps.alert-app.outputs.token }}
