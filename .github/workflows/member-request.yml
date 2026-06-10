@@ -177,7 +177,7 @@ jobs:
           # sync-roles 側は members.yml + config/members/*.yml を union 読込する。
           os.makedirs("config/members", exist_ok=True)
           member_file = f"config/members/{uid}.yml"
-          _data = {"uid": uid, "role": requested_role, "name": name}
+          _data = {"uid": uid, "role": requested_role, "jersey": jersey}
           with open(member_file, "w") as mf:
               json.dump(_data, mf, ensure_ascii=False)
               mf.write("\n")
@@ -195,20 +195,21 @@ jobs:
           run(["git", "checkout", "-b", branch])
           run(["git", "add", member_file])
 
+          jersey_label = ("背番号" + jersey) if jersey else ("UID " + safe_id)
           site_admin_url = "https://yokohama-funnies.vercel.app/admin/roles"
           profile_note = ""
           if not profile_saved:
               profile_note = "\n> ⚠️ **プロフィール自動保存に失敗しました。管理画面で手動設定してください。**\n"
 
           if is_role_change:
-              commit_msg = f"Change member ({name}): {current_role} → {requested_role} [{safe_id}]"
-              pr_title = f"権限変更: {name} {current_role} → {requested_role}"
+              commit_msg = f"Change member ({jersey_label}): {current_role} → {requested_role} [{safe_id}]"
+              pr_title = f"権限変更: {jersey_label} {current_role} → {requested_role}"
               pr_body = textwrap.dedent(f"""\
               ## 権限変更申請（Googleフォーム経由）
 
               | 項目 | 内容 |
               |------|------|
-              | 氏名 | {name} |
+              | 申請者 | {jersey_label} |
               | 現在の権限 | {current_role} |
               | 申請先の権限 | {requested_role} |
               | UID | `{safe_id}...` |
@@ -218,14 +219,14 @@ jobs:
               {profile_note}
               **マージすると自動的にSupabaseの権限が更新されます。**""")
           else:
-              commit_msg = f"Add member ({name}) as {requested_role} [{safe_id}]"
-              pr_title = f"会員申請: {name} → {requested_role}"
+              commit_msg = f"Add member ({jersey_label}) as {requested_role} [{safe_id}]"
+              pr_title = f"会員申請: {jersey_label} → {requested_role}"
               pr_body = textwrap.dedent(f"""\
               ## 会員申請（Googleフォーム経由）
 
               | 項目 | 内容 |
               |------|------|
-              | 氏名 | {name} |
+              | 申請者 | {jersey_label} |
               | 権限 | {requested_role} |
               | UID | `{safe_id}...` |
 
@@ -239,7 +240,7 @@ jobs:
           run(["gh", "pr", "create", "--title", pr_title, "--body", pr_body, "--head", branch, "--base", "main"])
 
           action = "権限変更" if is_role_change else "新規登録"
-          print(f"✅ PR created ({action}): {name} as {requested_role} [{safe_id}]")
+          print(f"✅ PR created ({action}): {jersey_label} as {requested_role} [{safe_id}]")
           PYTHON
 
       - name: Auto-link roster player by jersey number (best-effort)
