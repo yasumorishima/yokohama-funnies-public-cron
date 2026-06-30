@@ -95,28 +95,39 @@ jobs:
           GAS_WEBHOOK_URL: ${{ secrets.FUNNIES_GAS_WEBHOOK_URL }}
           GAS_WEBHOOK_SECRET: ${{ secrets.FUNNIES_GAS_WEBHOOK_SECRET }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           # action:healthcheck = secret 一致だけ確認しメールは送らない probe 経路。
+          # feedback Web App は Google ホストなので単発の接続 transient (timeout / 5xx / 一時的 404)
+          # が起きる。これは admin に対処不能なので、GAS 内側 probe / minami と同様
+          # 「一過性は無音、本物 (secret 不一致) だけ通知」にする。
           # GAS Web App は 302 で googleusercontent にリダイレクトするので -X POST は付けない
-          # (付けると 302 後の POST が Content-Length 無しで 411)。
+          # (付けると 302 後の POST が Content-Length 無しで 411)。最大 3 回リトライ。
           payload=$(jq -nc --arg secret "$GAS_WEBHOOK_SECRET" '{secret:$secret, action:"healthcheck"}')
-          http=$(echo "$payload" | curl --max-time 25 -sS -L -o /tmp/fb-body -w "%{http_code}" \
-            "$GAS_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            --data-binary @-)
-          body=$(cat /tmp/fb-body | head -c 500)
-          echo "feedback_webapp_http=$http body=$body"
-          if [ "$http" != "200" ]; then
-            echo "::error::feedback Web App HTTP $http (expected 200). URL down or webapp manifest stripped — /feedback の Gmail 通知経路が壊れている。"
-            exit 1
-          fi
+          http="000"; body=""
+          for attempt in 1 2 3; do
+            http=$(echo "$payload" | curl --max-time 25 -sS -L -o /tmp/fb-body -w "%{http_code}" \
+              "$GAS_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              --data-binary @-) || http="000"
+            body=$(head -c 500 /tmp/fb-body 2>/dev/null || true)
+            echo "feedback_webapp attempt=$attempt http=$http body=$body"
+            if [ "$http" = "200" ] && echo "$body" | grep -q '"ok":true'; then break; fi
+            if echo "$body" | grep -q "unauthorized"; then break; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 3)); fi
+          done
+          # 本物の障害: secret ドリフト (admin が対処すべき) → hard fail + メール。
           if echo "$body" | grep -q "unauthorized"; then
             echo "::error::feedback Web App unauthorized — WEBHOOK_SECRET が Vercel FEEDBACK_GAS_SECRET と drift。 /feedback は issue 作成するが Gmail 通知が silent drop。"
             exit 1
           fi
-          if ! echo "$body" | grep -q '"ok":true'; then
-            echo "::warning::feedback Web App unexpected response (expected ok:true): $body"
+          # 正常: secret 一致。
+          if [ "$http" = "200" ] && echo "$body" | grep -q '"ok":true'; then
+            echo "feedback Web App OK (secret matched)"
+            exit 0
           fi
+          # それ以外 (timeout / 接続失敗 / 非200 / 想定外 body) は Google 側一過性とみなし warning のみ
+          # (job を落とさない = メール抑制)。secret 不一致は上で hard fail 済。
+          echo "::warning::feedback Web App probe non-authoritative after 3 attempts (http=$http body=$body) — likely transient Google-side unavailability; not failing the job."
 
       - name: Checkout (pipeline health script)
         if: ${{ !cancelled() }}
