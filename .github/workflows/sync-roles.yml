@@ -109,6 +109,7 @@ jobs:
           }
 
           notify_queue = []
+          uid_jersey = {}
 
           with open("config/members.yml") as f:
               raw_lines = f.readlines()
@@ -141,6 +142,9 @@ jobs:
               if _r not in ("admin", "editor", "member", "viewer"):
                   print("  [warn] skip " + _pf + ": bad role " + _r); continue
               all_uids[_u] = _r
+              _j = str(_d.get("jersey") or "").strip()
+              if _j.isdigit():
+                  uid_jersey[_u] = _j
               _g = _d.get("graduation_class")
               if _g:
                   uid_meta[_u] = {"graduation_class": str(_g)}
@@ -208,6 +212,43 @@ jobs:
                   updated += 1
 
           print(f"\n✅ Done: {created} created, {updated} updated")
+          # --- 選手名簿の紐付け (承認済 = member/editor/admin のみ) ---
+          # 申請時点ではなく PR マージ後のこの sync でリンクする。
+          # リンク済 uid は no-op。同じ背番号の未リンク行が複数ある場合は曖昧なので warning のみで手動に回す。
+          linked = 0
+          for uid, jersey in uid_jersey.items():
+              role = all_uids.get(uid)
+              if role not in ("member", "editor", "admin"):
+                  print("  [link] skip %s: role=%s (not approved)" % (uid[:8], role))
+                  continue
+              try:
+                  url = f"{SUPABASE_URL}/rest/v1/players?user_id=eq.{uid}&deleted_at=is.null&select=id"
+                  req = urllib.request.Request(url, headers=HEADERS)
+                  with urllib.request.urlopen(req) as resp:
+                      already = json.loads(resp.read())
+                  if already:
+                      continue
+                  url = f"{SUPABASE_URL}/rest/v1/players?jersey_number=eq.{jersey}&user_id=is.null&deleted_at=is.null&select=id,name"
+                  req = urllib.request.Request(url, headers=HEADERS)
+                  with urllib.request.urlopen(req) as resp:
+                      cands = json.loads(resp.read())
+                  if len(cands) == 0:
+                      print("  [link] skip %s: no unlinked player with jersey %s" % (uid[:8], jersey))
+                      continue
+                  if len(cands) > 1:
+                      print("::warning::[link] ambiguous jersey %s for %s: %d unlinked rows; manual link required"
+                            % (jersey, uid[:8], len(cands)))
+                      continue
+                  row_id = cands[0]["id"]
+                  url = f"{SUPABASE_URL}/rest/v1/players?id=eq.{row_id}&user_id=is.null"
+                  body = json.dumps({"user_id": uid}).encode()
+                  req = urllib.request.Request(url, data=body, headers=HEADERS, method="PATCH")
+                  urllib.request.urlopen(req)
+                  print("  [link] linked player jersey %s -> %s" % (jersey, uid[:8]))
+                  linked += 1
+              except Exception as e:
+                  print("::warning::[link] failed for %s: %s" % (uid[:8], e))
+          print("[link] player links: %d" % linked)
 
           if notify_queue and GAS_WEBHOOK_URL and GAS_WEBHOOK_SECRET:
               try:
