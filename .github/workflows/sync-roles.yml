@@ -142,7 +142,8 @@ jobs:
               if _r not in ("admin", "editor", "member", "viewer"):
                   print("  [warn] skip " + _pf + ": bad role " + _r); continue
               all_uids[_u] = _r
-              _j = str(_d.get("jersey") or "").strip()
+              _jraw = _d.get("jersey")
+              _j = "" if _jraw is None else str(_jraw).strip()
               if _j.isdigit():
                   uid_jersey[_u] = _j
               _g = _d.get("graduation_class")
