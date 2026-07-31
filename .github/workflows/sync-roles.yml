@@ -71,15 +71,43 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p config
-          gh api "repos/${PRIVATE_REPO_OWNER}/${PRIVATE_REPO_NAME}/contents/config/members.yml" \
-            -H "Accept: application/vnd.github.raw" > config/members.yml
+          # runner からの一時的なネットワーク断 (dial tcp i/o timeout 等) が 1 回出ただけで
+          # ジョブを fail させない (= 失敗メールを飛ばさない)。404 (rc=44) だけは即確定。
+          api_retry() {
+            local out="$1"; shift
+            local i err="${RUNNER_TEMP}/apierr.txt"
+            for i in 1 2 3 4; do
+              if gh api "$@" > "$out" 2> "$err"; then
+                return 0
+              fi
+              if grep -qi "HTTP 404" "$err"; then
+                return 44
+              fi
+              echo "api attempt ${i} failed: $(head -c 200 "$err")" >&2
+              sleep $((i * 10))
+            done
+            return 1
+          }
+          api_retry config/members.yml \
+            "repos/${PRIVATE_REPO_OWNER}/${PRIVATE_REPO_NAME}/contents/config/members.yml" \
+            -H "Accept: application/vnd.github.raw"
           wc -c config/members.yml
           mkdir -p config/members
-          _files=$(gh api "repos/${PRIVATE_REPO_OWNER}/${PRIVATE_REPO_NAME}/contents/config/members" --jq '.[]?.name' 2>/dev/null || true)
+          _list_rc=0
+          api_retry "${RUNNER_TEMP}/members_list.json" \
+            "repos/${PRIVATE_REPO_OWNER}/${PRIVATE_REPO_NAME}/contents/config/members" || _list_rc=$?
+          _files=""
+          if [ "$_list_rc" = "0" ]; then
+            _files=$(jq -r '.[]?.name // empty' "${RUNNER_TEMP}/members_list.json")
+          elif [ "$_list_rc" != "44" ]; then
+            echo "::error::failed to list config/members after retries"; exit 1
+          fi
           for _f in $_files; do
             case "$_f" in
               *.yml|*.yaml)
-                gh api "repos/${PRIVATE_REPO_OWNER}/${PRIVATE_REPO_NAME}/contents/config/members/${_f}" -H "Accept: application/vnd.github.raw" > "config/members/${_f}" ;;
+                api_retry "config/members/${_f}" \
+                  "repos/${PRIVATE_REPO_OWNER}/${PRIVATE_REPO_NAME}/contents/config/members/${_f}" \
+                  -H "Accept: application/vnd.github.raw" || { echo "::error::failed to fetch ${_f}"; exit 1; } ;;
             esac
           done
           echo "per-file count: $(ls -1 config/members/ 2>/dev/null | wc -l)"
