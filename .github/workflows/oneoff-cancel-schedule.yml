@@ -1,0 +1,32 @@
+name: One-off cancel schedule 2026-10-25
+
+# 一度だけの作業用。作業ブランチへの push でだけ動く。終わったら消す。
+on:
+  push:
+    branches: [ccr-5cecb90d-m2xvbx]
+    paths: [.github/workflows/oneoff-cancel-schedule.yml]
+
+permissions: {}
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      DATE: "2026-10-25"
+    steps:
+      - name: 2026-10-25 の予定を中止にする（1 件だけのときだけ）
+        run: |
+          set -euo pipefail
+          H=(-H "apikey: $KEY" -H "Authorization: Bearer $KEY")
+          Q="game_date=eq.$DATE&deleted_at=is.null"
+          rows=$(curl -fsS "${H[@]}" "$SUPABASE_URL/rest/v1/schedule?$Q&select=id,game_date,game_time,game_type,opponent,venue,status")
+          echo "前: $rows"
+          n=$(echo "$rows" | jq length)
+          if [ "$n" != "1" ]; then echo "::error::該当が $n 件。1 件でないので何もしない"; exit 1; fi
+          id=$(echo "$rows" | jq -r '.[0].id')
+          after=$(curl -fsS -X PATCH "${H[@]}" -H "Content-Type: application/json" -H "Prefer: return=representation" \
+            "$SUPABASE_URL/rest/v1/schedule?id=eq.$id" -d '{"status":"中止"}')
+          echo "後: $(echo "$after" | jq -c '.[] | {id,game_date,game_type,status}')"
+          [ "$(echo "$after" | jq -r '.[0].status')" = "中止" ]
