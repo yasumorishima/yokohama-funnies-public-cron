@@ -17,7 +17,7 @@
 | file | 起動 | 役割 |
 |---|---|---|
 | `member-request.yml` | `repository_dispatch: member-request` | 入会申請を受けて private repo に `config/members/<uid>.yml` の PR を作る。`user_roles` の承認待ち行もここで作る |
-| `sync-roles.yml` | 5 分おき・手動・`repository_dispatch: sync-roles`・下の push | private repo の `config/members*.yml` を読み、Supabase の role を同期。承認メール・選手の紐付けも |
+| `sync-roles.yml` | 5 分おき・手動・`repository_dispatch: sync-roles` | private repo の `config/members*.yml` を読み、Supabase の role を同期。承認メール・選手の紐付けも |
 | `health-check.yml` | 毎時・手動 | 会員パイプラインの監視。異常時だけ private repo に Issue とメール（一過性では通知しない） |
 | `health-check-ack.yml` | `repository_dispatch: health-check, gas-heartbeat` | 監視の往復の応答側 |
 | `keep-alive.yml` | 週 1 | サイトを叩いて Supabase Free の自動休止を防ぐ |
@@ -25,13 +25,9 @@
 | `warm-weather.yml` | 30 分おき | `/weather` のキャッシュを温める |
 | `update-readme-stats.yml` | 毎月 1 日 | private repo の README の統計欄を更新 |
 
-## sync-roles をすぐ回す（cloud から）
-- ブランチ `claude/ops-YYYYMMDD` に **`requests/sync-roles.json`** を push すると sync-roles が起動する。
-  ```json
-  {"memo": "PR 承認後の即時同期", "at": "2026-10-24T10:00:00+09:00"}
-  ```
-- 中身は memo と時刻だけ。**名前・UID・PR の中身は書かない**（public）。
-- このブランチは main へ merge しない。会員承認の前後の手順は private 側 `CLAUDE.md` の「会員承認（3 段）」。
+## sync-roles の即時起動
+- 会員承認の直後の即時同期は、private の実行役 `yasumorishima/site-ops` が `workflow_dispatch` で起動する（cloud セッションから直接は起動できない）。
+- ⛔ `push` などブランチ上で動く起動条件を足さない。ブランチの workflow は repo の Secrets を読めるので、cloud セッションが workflow を書き換えれば鍵に届く（2026-10-24 にいったん足して戻した）。
 
 ## Session protocol
 - 返答は日本語・です/ます。走らせていないこと・確かめていないことは書かない。
