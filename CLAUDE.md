@@ -29,7 +29,7 @@
 - 会員承認の直後の即時同期は、private の実行役 `yasumorishima/site-ops` が `workflow_dispatch` で起動する（cloud セッションから直接は起動できない）。
 - ⛔ `push` などブランチ上で動く起動条件を足さない（2026-10-24 にいったん足して戻した）。
 - ⚠️ ただし、それだけでは鍵は守れない。cloud セッションがこの repo につながれていれば、ブランチに workflow を1 本足すだけで repo の Secrets（Supabase の service role キー・GitHub App の秘密鍵）を読める。⛔ **この repo を cloud につながない**（2026-10-25）。
-- ⛔ **鍵を env に持つ step でサイト repo の clone のコードを走らせない。clone に書くのは秘密を含まない中身だけ**（2026-10-25。member-request の会員ファイル＝uid・role・期。README の数字は鍵のない step で書く）。サイトの README から読んだ値は数字か確かめてから使う（`sed` の置換や `$(( ))` に生のまま入れるとコードが走る）。clone の中身は cloud セッションが書き換えられる。python を clone の中で走らせるなら `python3 -P`（置かれた `yaml.py` 等を読まない）、サイトの checkout は `persist-credentials: false`、件数を取る鍵は `scripts/count-db-rows.sh` の step だけ、README は symlink なら止まる。サイトの README から他の README へ写す値は数字だけ。
+- ⛔ **鍵を env に持つ step でサイト repo の clone のコードを走らせない。clone に書くのは秘密を含まない中身だけ**（2026-10-25。member-request の会員ファイル＝uid・role・期。README の数字は鍵のない step で書く）。サイトの README から読んだ値は数字か確かめてから使う（`sed` の置換や `$(( ))` に生のまま入れるとコードが走る）。clone の中身は cloud セッションが書き換えられる。python を clone の中で走らせるなら `python3 -P`（置かれた `yaml.py` 等を読まない）、サイトの checkout は `persist-credentials: false`、README 統計の job は Supabase の鍵を使わない（ファニーズに history_matches は無い）、README は symlink なら止まる。サイトの README から他の README へ写す値は数字だけ。
 
 ## Session protocol
 - 返答は日本語・です/ます。走らせていないこと・確かめていないことは書かない。

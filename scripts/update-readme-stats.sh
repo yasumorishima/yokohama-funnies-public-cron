@@ -14,8 +14,6 @@ APIS=$(find app/api -name 'route.ts' 2>/dev/null | wc -l | tr -d ' ' || true)
 COMPONENTS=$(find components -name '*.tsx' | wc -l | tr -d ' ' || true)
 MIGRATIONS=$(ls supabase/migrations/*.sql 2>/dev/null | wc -l | tr -d ' ' || true)
 WORKFLOWS=$(ls .github/workflows/*.yml 2>/dev/null | wc -l | tr -d ' ' || true)
-# history_matches の件数は前の step（scripts/count-db-rows.sh）が取って env で渡す。この script は鍵を使わない
-SENSEKI="${SENSEKI:-KEEP}"; [[ "$SENSEKI" =~ ^[0-9]+$ ]] || SENSEKI=KEEP
 TS_FILES=$(find app components lib -name '*.ts' -o -name '*.tsx' | wc -l | tr -d ' ' || true)
 LOC=$(find app components lib \( -name '*.ts' -o -name '*.tsx' \) -exec cat {} + | wc -l | tr -d ' ' || true)
 LOC_APPROX=$(( (LOC / 100) * 100 ))
@@ -37,7 +35,7 @@ TABLES_HISTORY=$(comm -23 \
   | wc -l | tr -d ' ' || true)
 
 echo "pages=$PAGES apis=$APIS components=$COMPONENTS migrations=$MIGRATIONS"
-echo "workflows=$WORKFLOWS senseki=$SENSEKI ts_files=$TS_FILES loc=~$LOC_APPROX"
+echo "workflows=$WORKFLOWS ts_files=$TS_FILES loc=~$LOC_APPROX"
 echo "tables_main=$TABLES_MAIN tables_history=$TABLES_HISTORY"
 
 # --- 置換関数 ---
@@ -63,7 +61,6 @@ for readme in README.md; do
   replace_stat components  "$COMPONENTS"        "$readme"
   replace_stat migrations  "$MIGRATIONS"        "$readme"
   replace_stat workflows   "$WORKFLOWS"         "$readme"
-  replace_stat senseki     "$SENSEKI"           "$readme"
   replace_stat ts_files    "$TS_FILES"          "$readme"
   replace_stat loc         "~${LOC_APPROX}"     "$readme"
   replace_stat tables_main "$TABLES_MAIN"       "$readme"
