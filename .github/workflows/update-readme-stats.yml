@@ -38,17 +38,8 @@ jobs:
           # .git/config にトークンを残さない（README を symlink にされると読まれる）。push は下で明示のトークンで
           persist-credentials: false
 
-      - name: Count DB rows (the only step with the Supabase key; does not read the site clone)
-        id: db
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: bash scripts/count-db-rows.sh
-
       - name: Run stats script
         # public-cron 自身のスクリプトを使う（サイト repo のコードは走らせない）。サイトの clone を触る step に鍵は渡さない
-        env:
-          SENSEKI: ${{ steps.db.outputs.senseki }}
         run: bash scripts/update-readme-stats.sh ./funnies-source
 
       - name: Commit README if changed
