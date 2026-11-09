@@ -12,12 +12,13 @@
 - `member-request.yml` は申請者の氏名とメールをイベントのファイルから読み、ジョブの最初に `::add-mask::` で登録している（2026-10-24 まで env に入れていてログに平文で出ていた）。この形を崩さない。
 - 監視（`health-check.yml` / `scripts/`）は `minami-public-cron` に同じ写しがある＝**片方だけ直さない**。
 - README の Workflows 表は自動では更新されない。workflow を足したら表も直す。
+- `sync-roles.yml` の `cron:` 行は **App（bot）が最後に書いた**（2026-11-10）。定期実行の失敗通知は cron 行を最後に書いた人に届くので、GitHub 側の障害（ジョブが 1 本も作られない失敗など）が人へのメールにならない。⛔ **cron 行を人の手で変えない**（変えると通知が人に戻る）。変えるときは `one-off-bot-owns-cron.yml`（使った後に削除・git 履歴にある）と同じ形で App に書かせる。本当の故障は `health-check.yml` が Issue とメールで知らせる。RPi5 からの 30 分おき起動は同日にやめた（RPi5 は止まることがある）＝監視の liveness は 14 時間。
 
 ## workflow
 | file | 起動 | 役割 |
 |---|---|---|
 | `member-request.yml` | `repository_dispatch: member-request` | 入会申請を受けて private repo に `config/members/<uid>.yml` の PR を作る。`user_roles` の承認待ち行もここで作る |
-| `sync-roles.yml` | 5 分おき・手動・`repository_dispatch: sync-roles` | private repo の `config/members*.yml` を読み、Supabase の role を同期。承認メール・選手の紐付けも |
+| `sync-roles.yml` | 10 分おき（実際に届くのは 1 日 3〜5 回）・手動・`repository_dispatch: sync-roles` | private repo の `config/members*.yml` を読み、Supabase の role を同期。承認メール・選手の紐付けも |
 | `health-check.yml` | 毎時・手動 | 会員パイプラインの監視。異常時だけ private repo に Issue とメール（一過性では通知しない） |
 | `health-check-ack.yml` | `repository_dispatch: health-check, gas-heartbeat` | 監視の往復の応答側 |
 | `keep-alive.yml` | 週 1 | サイトを叩いて Supabase Free の自動休止を防ぐ |
