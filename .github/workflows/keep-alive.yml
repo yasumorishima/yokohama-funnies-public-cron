@@ -15,9 +15,9 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: curl /schedule (SSR triggers Supabase fetch, no anon key needed)
+      - name: curl /results (public page; SSR triggers Supabase fetch, no anon key needed)
         run: |
-          HTTP_CODE=$(curl --max-time 60 -sS -o /dev/null -w "%{http_code}" "${{ secrets.VERCEL_APP_URL }}/schedule")
+          HTTP_CODE=$(curl --max-time 60 -sS -o /dev/null -w "%{http_code}" "${{ secrets.VERCEL_APP_URL }}/results")
           echo "HTTP $HTTP_CODE"
           if [ "$HTTP_CODE" != "200" ]
           then
