@@ -16,7 +16,7 @@
 | `keep-alive.yml` | `0 0 * * 0` (週次) | `/schedule` を HTTP GET して SSR 経由で Supabase fetch を起こし、 Free plan の 7 日無活動 auto-pause を回避 (anon key 不要) |
 | `purge-deleted-photos.yml` | `0 19 * * *` (毎日 JST 4:00) + dispatch | soft-delete >7日の photos を Supabase Storage+DB から物理削除 (2026-05-30 private repo から移行) |
 | `member-request.yml` | `repository_dispatch: member-request` | サイトからの入会申請を受けて、 private repo (yokohama-funnies) に `config/members/<uid>.yml` を追加する PR を App token で作成。 申請時点の氏名 (`display_name`) を書くのもこの workflow |
-| `sync-roles.yml` | `*/10 * * * *` + dispatch (`sync-roles`) | private repo の `config/members/*.yml` (per-uid) と `config/members.yml` (手編集 allowlist) を統合して読み、 Supabase `user_roles` の `role` / `graduation_class` を同期 |
+| `sync-roles.yml` | `*/10 * * * *` + dispatch (`sync-roles`) | private repo の `config/members/*.yml` (per-uid) と `config/members.yml` (手編集 allowlist) を統合して読み、 Supabase `user_roles` の `role` / `graduation_class` を同期。 **cron 行は App（bot）が書いたもの＝人の手で変えない**（定期実行の失敗通知は cron 行を最後に書いた人に届く・2026-11-10）。 定期実行の回で job `keep-enabled` が自分を有効化し直す（60 日停止の回避） |
 | `health-check.yml` | `7 * * * *` + dispatch | 上 2 本 (会員パイプライン) の死活監視。 Vercel proxy → GAS → `repository_dispatch` の往復と GAS heartbeat の鮮度を検査し、 異常時のみ private repo に追跡 issue + メール。 **一過性 (proxy 5xx / Actions 障害 / GAS トリガー遅延) では通知しない** — 詳細は各ステップのコメント |
 | `health-check-ack.yml` | `repository_dispatch: health-check, gas-heartbeat` | 上の往復の応答側。 GAS が打ち返した dispatch を受けて run を残すだけ (probe はこの run の `created_at` を見る) |
 | `update-readme-stats.yml` | `0 0 1 * *` (毎月1日 09:00 JST) | yokohama-funnies を App token で checkout して `scripts/update-readme-stats.sh` を実行し、 README の `<!--stat:KEY-->...<!--/stat-->` marker を実測値で更新 |
