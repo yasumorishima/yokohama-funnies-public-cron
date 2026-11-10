@@ -13,7 +13,7 @@
 | File | Schedule | 役割 |
 |---|---|---|
 | `warm-weather.yml` | `*/30 * * * *` | funnies の `/weather` を HTTP GET で warm、 Vercel ISR cache (`revalidate=1800`) を refresh |
-| `keep-alive.yml` | `0 0 * * 0` (週次) | `/schedule` を HTTP GET して SSR 経由で Supabase fetch を起こし、 Free plan の 7 日無活動 auto-pause を回避 (anon key 不要) |
+| `keep-alive.yml` | `0 0 * * 0` (週次) | `/results`（未ログインでも DB を読む公開ページ。`/schedule` は会員限定になり 307 でログインへ送られるので使わない）を HTTP GET して SSR 経由で Supabase fetch を起こし、 Free plan の 7 日無活動 auto-pause を回避 (anon key 不要) |
 | `purge-deleted-photos.yml` | `0 19 * * *` (毎日 JST 4:00) + dispatch | soft-delete >7日の photos を Supabase Storage+DB から物理削除 (2026-05-30 private repo から移行) |
 | `member-request.yml` | `repository_dispatch: member-request` | サイトからの入会申請を受けて、 private repo (yokohama-funnies) に `config/members/<uid>.yml` を追加する PR を App token で作成。 申請時点の氏名 (`display_name`) を書くのもこの workflow |
 | `sync-roles.yml` | `*/10 * * * *` + dispatch (`sync-roles`) | private repo の `config/members/*.yml` (per-uid) と `config/members.yml` (手編集 allowlist) を統合して読み、 Supabase `user_roles` の `role` / `graduation_class` を同期。 **cron 行は App（bot）が書いたもの＝人の手で変えない**（定期実行の失敗通知は cron 行を最後に書いた人に届く・2026-11-10）。 定期実行の回で job `keep-enabled` が自分を有効化し直す（60 日停止の回避） |
